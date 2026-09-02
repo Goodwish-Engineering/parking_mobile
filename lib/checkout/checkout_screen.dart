@@ -412,6 +412,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       await _dbHelper.updateCheckOutRecord({
         'checkedout_by': id,
         'receipt_id': receiptId,
+        'vehicle_number': vehicleNumber,
+        'vehicle_type': vehicleType,
         'checkout_time': checkoutTime.toString(),
         'amount': amount,
         'checkin_time': checkInTime.toString(),

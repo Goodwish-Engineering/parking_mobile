@@ -96,6 +96,22 @@ class DatabaseHelper {
     return record != null;
   }
 
+  Future<void> closeOpenSessionForCard(String cardUid) async {
+    final db = await database;
+    await _lock.synchronized(() async {
+      await db.update(
+        'parking_records',
+        {
+          'checkout_time': DateTime.now().toIso8601String(),
+          'checkedout_by': 'RECYCLED_AUTO',
+          'is_synced': 1,
+        },
+        where: 'card_uid = ? AND checkout_time IS NULL',
+        whereArgs: [cardUid.toUpperCase()],
+      );
+    });
+  }
+
   Future<List<Map<String, dynamic>>> searchVehicleLocally(
     String query,
   ) async {
@@ -111,7 +127,7 @@ class DatabaseHelper {
   Future<int> updateCheckOutRecord(Map<String, dynamic> record) async {
     final db = await database;
     return await _lock.synchronized(() async {
-      return await db.update(
+      final updated = await db.update(
         'parking_records',
         {
           'checkout_time': record['checkout_time'],
@@ -124,6 +140,25 @@ class DatabaseHelper {
         where: 'receipt_id = ?',
         whereArgs: [record['receipt_id']],
       );
+
+      // If record does not exist on this POS (e.g. check-in was on another POS offline),
+      // insert it so this POS can sync the checkout and collected amount to server!
+      if (updated == 0) {
+        await db.insert('parking_records', {
+          'receipt_id': record['receipt_id'],
+          'vehicle_number': record['vehicle_number'] ?? '',
+          'vehicle_type': record['vehicle_type'] ?? '',
+          'checkin_time': record['checkin_time'],
+          'checkout_time': record['checkout_time'],
+          'checkedout_by': record['checkedout_by'],
+          'amount': record['amount'],
+          'duration': record['duration'],
+          'payment_method': record['payment_method'],
+          'is_synced': 0,
+        });
+        return 1;
+      }
+      return updated;
     });
   }
 

@@ -137,25 +137,31 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
       return;
     }
 
+    // 0. Verify that data was successfully written to the physical MIFARE chip
+    if (!result.writeSuccess) {
+      if (_currentPendingPayload != null) {
+        _nfcService.setPendingWriteData(_currentPendingPayload!);
+      }
+      if (!mounted) return;
+      HapticFeedback.vibrate();
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('⚠️ Card write failed! Please hold card firmly and tap again.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isProcessingCheckIn = true);
 
     try {
       final cardUid = result.cardUid;
 
-      // 1. Check if this card is already assigned to a car parked inside
-      final isInside = await _dbHelper.isCardCurrentlyInside(cardUid);
-      if (isInside) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            behavior: SnackBarBehavior.floating,
-            content: Text('❌ Card $cardUid is already assigned to another parked vehicle!'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
+      // 1. Auto-reconcile any previous unclosed local session for this returned card (Multi-POS support)
+      await _dbHelper.closeOpenSessionForCard(cardUid);
 
       // 2. Perform Card Check-In
       await _executeCardCheckIn(

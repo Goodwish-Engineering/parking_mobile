@@ -291,6 +291,9 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
       // 2. Save in local database
       await _dbHelper.updateCheckOutRecord({
         'receipt_id': rId,
+        'vehicle_number': vNo,
+        'vehicle_type': vType,
+        'checkin_time': formatDateTime(cIn),
         'checkout_time': ctt,
         'amount': fee,
         'duration': duration,
