@@ -78,6 +78,18 @@ class DatabaseHelper {
     });
   }
 
+  Future<Map<String, dynamic>?> getRecordByReceiptId(String receiptId) async {
+    final db = await database;
+    final results = await db.query(
+      'parking_records',
+      where: 'receipt_id = ?',
+      whereArgs: [receiptId],
+      limit: 1,
+    );
+    if (results.isNotEmpty) return results.first;
+    return null;
+  }
+
   Future<Map<String, dynamic>?> getRecordByCardUid(String cardUid) async {
     final db = await database;
     final results = await db.query(

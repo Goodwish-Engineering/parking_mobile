@@ -190,11 +190,18 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       }
 
       if (parsedData != null) {
+        bool isAlreadyOut = _alreadyCheckedOut;
+        final localRec = await _dbHelper
+            .getRecordByReceiptId(parsedData['receiptID']?.toString() ?? '');
+        if (localRec != null && localRec['checkout_time'] != null) {
+          isAlreadyOut = true;
+        }
+
         setState(() {
           ticketData = parsedData;
           parkingFee = calculateParkingFee(parsedData!)?.toDouble();
           _shouldShowDetails = true;
-          _alreadyCheckedOut = false;
+          _alreadyCheckedOut = isAlreadyOut;
         });
         HapticFeedback.heavyImpact();
         return;
@@ -235,11 +242,18 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         return;
       }
 
+      bool isAlreadyOut = false;
+      final localRec = await _dbHelper
+          .getRecordByReceiptId(parsedData['receiptID']?.toString() ?? '');
+      if (localRec != null && localRec['checkout_time'] != null) {
+        isAlreadyOut = true;
+      }
+
       setState(() {
         ticketData = parsedData;
         parkingFee = calculateParkingFee(parsedData)?.toDouble();
         _shouldShowDetails = true;
-        _alreadyCheckedOut = false;
+        _alreadyCheckedOut = isAlreadyOut;
       });
     } catch (e) {
       print('Scan processing error: $e');
