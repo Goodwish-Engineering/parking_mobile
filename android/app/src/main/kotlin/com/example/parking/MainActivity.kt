@@ -29,8 +29,6 @@ class MainActivity : FlutterActivity(), NfcAdapter.ReaderCallback {
     @Volatile
     private var pendingWriteData: String? = null
 
-    @Volatile
-    private var shouldClearOnNextTap: Boolean = false
 
     // Printer callback
     private val printerCallback = object : IPosPrinterCallback.Stub() {
@@ -171,23 +169,6 @@ class MainActivity : FlutterActivity(), NfcAdapter.ReaderCallback {
         return String(validBytes, Charsets.UTF_8).trim()
     }
 
-    private fun clearMifareData(mifare: MifareClassic): Boolean {
-        val key = MifareClassic.KEY_DEFAULT
-        val emptyBlock = ByteArray(16)
-
-        if (mifare.authenticateSectorWithKeyA(1, key)) {
-            mifare.writeBlock(4, emptyBlock)
-            mifare.writeBlock(5, emptyBlock)
-            mifare.writeBlock(6, emptyBlock)
-        } else {
-            return false
-        }
-
-        if (mifare.authenticateSectorWithKeyA(2, key)) {
-            mifare.writeBlock(8, emptyBlock)
-        }
-        return true
-    }
 
     override fun onTagDiscovered(tag: Tag?) {
         if (tag == null) return
@@ -207,9 +188,6 @@ class MainActivity : FlutterActivity(), NfcAdapter.ReaderCallback {
                     writeSuccess = writeMifareData(mifare, writeText)
                     ticketData = writeText
                     pendingWriteData = null
-                } else if (shouldClearOnNextTap) {
-                    clearMifareData(mifare)
-                    shouldClearOnNextTap = false
                 } else {
                     ticketData = readMifareData(mifare)
                 }
@@ -332,10 +310,6 @@ class MainActivity : FlutterActivity(), NfcAdapter.ReaderCallback {
                 }
                 "clearPendingWriteData" -> {
                     pendingWriteData = null
-                    result.success(true)
-                }
-                "prepareClearCard" -> {
-                    shouldClearOnNextTap = true
                     result.success(true)
                 }
                 else -> result.notImplemented()

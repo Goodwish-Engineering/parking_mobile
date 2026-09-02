@@ -435,9 +435,6 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         'payment_method': paymentMethod,
       });
 
-      if (ticketData?['cardUid'] != null) {
-        await _nfcService.prepareClearCard();
-      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

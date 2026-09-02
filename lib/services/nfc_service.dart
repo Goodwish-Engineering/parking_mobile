@@ -83,11 +83,6 @@ class NfcCardService {
     } catch (_) {}
   }
 
-  Future<void> prepareClearCard() async {
-    try {
-      await _nfcChannel.invokeMethod('prepareClearCard');
-    } catch (_) {}
-  }
 
   void dispose() {
     _cardScanStreamController.close();
