@@ -1,4 +1,3 @@
-// ignore_for_file: avoid_print
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:parking/auth/api_endpoints.dart';
@@ -29,8 +28,6 @@ class VehicleService {
         },
         body: body,
       );
-      print('Response Status: ${response.statusCode}');
-      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
@@ -75,8 +72,6 @@ class VehicleService {
         },
         body: body,
       );
-      print('Response Status: ${response.statusCode}');
-      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
@@ -95,15 +90,17 @@ class VehicleService {
   Future<List<dynamic>> searchVehicle({required String query}) async {
     try {
       final token = await SecureStorage.getAccessToken();
-      final response = await http.get(
-        Uri.parse(
-          '${ApiEndpoints.baseUrl}parkinginfo/parking-details/search-vehicle/?query=$query',
-        ),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .get(
+            Uri.parse(
+              '${ApiEndpoints.baseUrl}parkinginfo/parking-details/search-vehicle/?query=$query',
+            ),
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer $token",
+            },
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);

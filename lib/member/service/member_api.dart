@@ -38,8 +38,7 @@ class ReportService {
               throw Exception('Request timeout');
             },
           );
-      print(response.statusCode);
-      print(response.body);
+
       // Check if request was successful
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -102,11 +101,16 @@ class ReportService {
       );
       final data = json.decode(response.body);
       if (response.statusCode == 200) {
-        return {'success': true, 'message': 'Card replaced successfully', 'data': data};
+        return {
+          'success': true,
+          'message': 'Card replaced successfully',
+          'data': data,
+        };
       } else {
         return {
           'success': false,
-          'message': data['error'] ?? data['message'] ?? 'Failed to replace card',
+          'message':
+              data['error'] ?? data['message'] ?? 'Failed to replace card',
         };
       }
     } catch (e) {
