@@ -44,10 +44,19 @@ class IrdBill {
       checkoutResponse.containsKey('error') &&
       !checkoutResponse.containsKey('status_code');
 
-  /// Whether this mall issues IRD bills, as learnt from its last online checkouts.
+  /// Whether this mall issues IRD bills, as learnt at login and from online checkouts.
   static Future<bool> isOn() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_billingOnKey) ?? false;
+  }
+
+  /// Saves what the server says at login, so even a new or reinstalled POS
+  /// marks its offline slips correctly. An older server says nothing.
+  static Future<void> rememberFromLogin(Map<String, dynamic> loginResponse) async {
+    final billingOn = loginResponse['ird_billing_enabled'];
+    if (billingOn is! bool) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_billingOnKey, billingOn);
   }
 
   static Future<void> _rememberBillingOn(

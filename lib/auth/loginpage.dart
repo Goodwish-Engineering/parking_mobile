@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:parking/auth/api_endpoints.dart';
 import 'package:parking/auth/auth_service.dart';
 import 'package:parking/home/screens/root_app.dart';
+import 'package:parking/services/ird_bill.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -98,6 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
           role: data['role'],
           freeTime: data['free_time'],
         );
+        await IrdBill.rememberFromLogin(data);
 
         if (data['parking_slip_details'] != null) {
           final parkingSlipDetails = data['parking_slip_details'];

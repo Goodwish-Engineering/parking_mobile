@@ -68,6 +68,17 @@ void main() {
     expect(await IrdBill.isOn(), isFalse);
   });
 
+  test('learns at login whether the mall bills', () async {
+    await IrdBill.rememberFromLogin({'ird_billing_enabled': true});
+    expect(await IrdBill.isOn(), isTrue);
+
+    await IrdBill.rememberFromLogin({'access': 'token'}); // older server: no answer, no change
+    expect(await IrdBill.isOn(), isTrue);
+
+    await IrdBill.rememberFromLogin({'ird_billing_enabled': false});
+    expect(await IrdBill.isOn(), isFalse);
+  });
+
   test('remembers billing is on, and a free exit does not change that', () async {
     // The print cannot be recorded in a test, so the checkout's own copy is printed
     final printed = await IrdBill.billToPrint({'bill': bill}, 100);
