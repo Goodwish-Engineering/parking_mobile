@@ -11,6 +11,7 @@ import 'package:parking/main.dart';
 import 'package:intl/intl.dart';
 
 import 'package:parking/services/nfc_service.dart';
+import 'package:parking/services/ird_bill_printer.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final List<VehicleRate> vehicleRates;
@@ -421,6 +422,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         checkoutTime: checkoutTime,
         amount: amount,
         paymentMethod: paymentMethod,
+        checkoutResponse: response,
       );
 
       await _dbHelper.updateCheckOutRecord({
@@ -470,6 +472,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
     required DateTime checkoutTime,
     required double amount,
     required String paymentMethod,
+    required Map<String, dynamic> checkoutResponse,
   }) async {
     try {
       // Get heading details from parkingSlipDetails
@@ -478,6 +481,22 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       final heading3 = widget.parkingSlipDetails['heading3'] ?? '';
       final heading4 = widget.parkingSlipDetails['heading4'] ?? '';
       final fullName = widget.parkingSlipDetails['full_name'] ?? 'Operator';
+
+      // The IRD bill replaces the slip when the server issued one at checkout
+      final billed = await IrdBillPrinter.printIfBilled(
+        checkoutResponse: checkoutResponse,
+        amount: amount,
+        parkingLines: [
+          'Vehicle Number: $vehicleNumber',
+          'Vehicle Type: $vehicleType',
+          'Receipt ID: $receiptId',
+          'Check-out BY: $fullName',
+          'Check-in: ${DateFormat('yyyy/MM/dd HH:mm').format(checkInTime)}',
+          'Check-out: ${DateFormat('yyyy/MM/dd HH:mm').format(checkoutTime)}',
+          'Duration: ${checkoutTime.difference(checkInTime).inHours}h ${checkoutTime.difference(checkInTime).inMinutes.remainder(60)}m',
+        ],
+      );
+      if (billed) return;
 
       await printerChannel.invokeMethod('setPrinterPrintAlignment', {
         'alignment': 1,
@@ -518,6 +537,10 @@ Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}
       await printerChannel.invokeMethod('printText', {
         'text': 'Total: Rs $amount',
       });
+      await IrdBillPrinter.printProvisionalNote(
+        checkoutResponse: checkoutResponse,
+        amount: amount,
+      );
       await printerChannel.invokeMethod('printerPerformPrint', {
         'feedLines': 85,
       });

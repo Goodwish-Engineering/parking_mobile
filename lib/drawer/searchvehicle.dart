@@ -8,6 +8,7 @@ import 'package:parking/auth/api_endpoints.dart';
 import 'package:parking/auth/auth_service.dart';
 import 'package:parking/database/helper_class.dart';
 import 'package:parking/home/models/vehicleratemodel.dart';
+import 'package:parking/services/ird_bill_printer.dart';
 
 class SearchLostVehicleScreen extends StatefulWidget {
   const SearchLostVehicleScreen({super.key});
@@ -254,41 +255,92 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
       final diff = now.difference(cIn);
       final duration = '${diff.inHours}h ${diff.inMinutes.remainder(60)}m';
 
-      // 1. Print on Android Thermal Printer
+      // 1. Check out on the server first (same as the card screen): it rejects
+      //    receipts that are already checked out, so no duplicate is printed,
+      //    and it returns the IRD bill. Offline (no status_code) still
+      //    completes locally and is uploaded later.
+      final response = await vehicleService.checkOut(
+        receiptId: rId,
+        vehicleNumber: vNo,
+        vehicleType: vType,
+        checkoutTime: now.toIso8601String(),
+        amount: fee,
+        paymentMethod: paymentMethod,
+      );
+      if (response.containsKey('status_code')) {
+        final body = (response['response_body'] ?? '').toString().toLowerCase();
+        final alreadyOut = body.contains('already checked out');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              alreadyOut
+                  ? 'This receipt is already checked out.'
+                  : 'Checkout was rejected by server. Please retry.',
+            ),
+            backgroundColor: alreadyOut ? Colors.orange : Colors.red,
+          ),
+        );
+        if (alreadyOut) _searchVehicle();
+        return;
+      }
+
+      // 2. Print the IRD bill, or the usual slip when there is none
       try {
-        await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 35});
-        await _channel.invokeMethod('setPrinterPrintAlignment', {'alignment': 1});
-        await _channel.invokeMethod('printText', {'text': '$heading1\n$heading2\n$heading3\n$heading4'});
-        await _channel.invokeMethod('printerPerformPrint', {'feedLines': 20});
+        final billed = await IrdBillPrinter.printIfBilled(
+          checkoutResponse: response,
+          amount: fee,
+          parkingLines: [
+            'Vehicle Number: $vNo',
+            'Vehicle Type: $vType',
+            'Receipt ID: $rId',
+            'Check-out BY: $fullName',
+            'Check-in: ${formatDateTime(cIn)}',
+            'Check-out: $ctt',
+            'Duration: $duration',
+          ],
+        );
+        if (!billed) {
+          await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 35});
+          await _channel.invokeMethod('setPrinterPrintAlignment', {'alignment': 1});
+          await _channel.invokeMethod('printText', {'text': '$heading1\n$heading2\n$heading3\n$heading4'});
+          await _channel.invokeMethod('printerPerformPrint', {'feedLines': 20});
 
-        await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 25});
-        await _channel.invokeMethod('setPrinterPrintAlignment', {'alignment': 0});
-        await _channel.invokeMethod('printText', {
-          'text': 'Vehicle Number: $vNo\n'
-              'Vehicle Type: $vType\n'
-              'Receipt ID: $rId\n'
-              'Check-out BY: $fullName\n'
-              'Check-in: ${formatDateTime(cIn)}\n'
-              'Check-out: $ctt\n'
-              'Duration: $duration\n'
-              'Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}',
-        });
-        await _channel.invokeMethod('printerPerformPrint', {'feedLines': 20});
+          await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 25});
+          await _channel.invokeMethod('setPrinterPrintAlignment', {'alignment': 0});
+          await _channel.invokeMethod('printText', {
+            'text': 'Vehicle Number: $vNo\n'
+                'Vehicle Type: $vType\n'
+                'Receipt ID: $rId\n'
+                'Check-out BY: $fullName\n'
+                'Check-in: ${formatDateTime(cIn)}\n'
+                'Check-out: $ctt\n'
+                'Duration: $duration\n'
+                'Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}',
+          });
+          await _channel.invokeMethod('printerPerformPrint', {'feedLines': 20});
 
-        await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 35});
-        await _channel.invokeMethod('setPrinterPrintAlignment', {'alignment': 1});
-        await _channel.invokeMethod('printText', {'text': 'Total Fee: Rs. ${fee.toStringAsFixed(0)}'});
-        if (footerText != null && footerText.isNotEmpty) {
-          await _channel.invokeMethod('printerPerformPrint', {'feedLines': 10});
-          await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 22});
-          await _channel.invokeMethod('printText', {'text': footerText});
+          await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 35});
+          await _channel.invokeMethod('setPrinterPrintAlignment', {'alignment': 1});
+          await _channel.invokeMethod('printText', {'text': 'Total Fee: Rs. ${fee.toStringAsFixed(0)}'});
+          if (footerText != null && footerText.isNotEmpty) {
+            await _channel.invokeMethod('printerPerformPrint', {'feedLines': 10});
+            await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 22});
+            await _channel.invokeMethod('printText', {'text': footerText});
+          }
+          await IrdBillPrinter.printProvisionalNote(
+            checkoutResponse: response,
+            amount: fee,
+          );
+          await _channel.invokeMethod('printerPerformPrint', {'feedLines': 80});
         }
-        await _channel.invokeMethod('printerPerformPrint', {'feedLines': 80});
       } catch (printErr) {
         debugPrint("Printing failed: $printErr");
       }
 
-      // 2. Save in local database
+      // 3. Save in local database
       await _dbHelper.updateCheckOutRecord({
         'receipt_id': rId,
         'vehicle_number': vNo,
@@ -301,17 +353,6 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
         'payment_method': paymentMethod,
       });
 
-      // 3. Online sync attempt
-      try {
-        await vehicleService.checkOut(
-          receiptId: rId,
-          vehicleNumber: vNo,
-          vehicleType: vType,
-          checkoutTime: now.toIso8601String(),
-          amount: fee,
-          paymentMethod: paymentMethod,
-        );
-      } catch (_) {}
 
       if (!mounted) return;
       HapticFeedback.heavyImpact();
