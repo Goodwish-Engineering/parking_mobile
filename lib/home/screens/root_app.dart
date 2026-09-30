@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:parking/drawer/add_member.dart';
 import 'package:parking/drawer/drawer.dart';
 import 'package:parking/drawer/searchvehicle.dart';
 import 'package:parking/home/screens/homepage.dart';
-import 'package:parking/member/screens/list_member.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -16,11 +14,12 @@ class _AppShellState extends State<AppShell> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int selectedIndex = 0;
 
+  // Members are added, renewed and listed on the website now, and the gate panel
+  // holds the cards it needs. The POS keeps the jobs that have to work at the
+  // counter with the till: parking, and finding a lost slip.
   final List<Widget> screens = const [
     Homepage(),
     SearchLostVehicleScreen(),
-    RegistrationFlow(),
-    ListMember(),
   ];
 
   @override

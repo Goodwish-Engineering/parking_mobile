@@ -70,8 +70,6 @@ class Mydrawer extends StatelessWidget {
                 children: [
                   _item(context, 0, Icons.home, 'Home'),
                   _item(context, 1, Icons.search, 'Search / Lost Slip'),
-                  _item(context, 2, Icons.person_add, 'Add Member'),
-                  _item(context, 3, Icons.list_alt, 'List Member'),
                   const Spacer(),
                   ListTile(
                     leading: const Icon(Icons.logout, color: Colors.red),
