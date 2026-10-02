@@ -129,8 +129,11 @@ class IrdBill {
       'Fiscal Year: ${_text(bill['fiscal_year'])}',
       'Date: $issueDate (BS)',
       if (saleDate.isNotEmpty && saleDate != issueDate) 'Sale Date: $saleDate (BS)',
-      if (_text(bill['customer_name']).isNotEmpty) 'Buyer: ${_text(bill['customer_name'])}',
-      if (_text(bill['customer_pan']).isNotEmpty) 'Buyer PAN: ${_text(bill['customer_pan'])}',
+      // Annex 6 prints these three on BOTH the tax invoice and the abbreviated one, so
+      // the labels are always here and simply stand empty for a visitor who gave nothing.
+      "Purchaser's Name: ${_text(bill['customer_name'])}",
+      'Address: ${_text(bill['customer_address'])}',
+      "Purchaser's PAN: ${_text(bill['customer_pan'])}",
       divider,
       for (final item in items) ...[
         _text(item['description']),
@@ -139,7 +142,11 @@ class IrdBill {
       divider,
       if (_text(bill['discount']) != '0.00') 'Discount: Rs ${_text(bill['discount'])}',
       'Taxable Amount: Rs ${_text(bill['taxable_amount'])}',
-      if (_text(bill['vat_rate']) != '0') 'VAT ${_text(bill['vat_rate'])}%: Rs ${_text(bill['vat_amount'])}',
+      // Only the full tax invoice carries a VAT line: Annex 6's abbreviated layout goes
+      // straight from the taxable amount to the total. The server decides which this is,
+      // because the same rule has to hold on the website's print.
+      if (bill['show_vat_line'] == true)
+        'VAT ${_text(bill['vat_rate'])}%: Rs ${_text(bill['vat_amount'])}',
       'Total: Rs ${_text(bill['total_amount'])}',
       _text(bill['total_in_words']),
       'Paid by: ${_text(bill['payment_method']) == 'QR' ? 'QR' : 'Cash'}',

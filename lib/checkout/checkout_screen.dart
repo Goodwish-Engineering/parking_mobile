@@ -38,6 +38,15 @@ class _CheckoutScreenState extends State<CheckoutScreen>
   bool _isProcessingScan = false;
   bool _shouldShowDetails = false;
   bool _alreadyCheckedOut = false;
+  // IRD Annex 6: a bill with the buyer's PAN on it prints as a TAX INVOICE and is the only
+  // kind the buyer's employer can reclaim the VAT on. Without one it is an ABBREVIATED TAX
+  // INVOICE, which is what a visitor paying for an hour wants. Asked here, at the exit,
+  // because an issued bill is frozen -- a PAN added later would mean cancelling the bill
+  // with a credit note and issuing another, over a routine request.
+  bool _companyBill = false;
+  final TextEditingController _buyerNameController = TextEditingController();
+  final TextEditingController _buyerAddressController = TextEditingController();
+  final TextEditingController _buyerPanController = TextEditingController();
   String? apiResponseMessage;
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
@@ -61,6 +70,9 @@ class _CheckoutScreenState extends State<CheckoutScreen>
 
   @override
   void dispose() {
+    _buyerNameController.dispose();
+    _buyerAddressController.dispose();
+    _buyerPanController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _nfcSubscription?.cancel();
     _nfcService.stopListening();
@@ -361,6 +373,91 @@ class _CheckoutScreenState extends State<CheckoutScreen>
     }
   }
 
+  /// The buyer's details, asked for only when somebody wants a VAT bill.
+  ///
+  /// Left alone, the slip prints as an ABBREVIATED TAX INVOICE exactly as it always has --
+  /// which is right for a visitor, and is the overwhelming majority of exits. Ticked, the
+  /// operator types the company's PAN and the slip prints as a TAX INVOICE, which is the
+  /// only version the company can claim its VAT back on.
+  Widget _buyerDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CheckboxListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          value: _companyBill,
+          activeColor: Colors.green,
+          checkColor: Colors.white,
+          side: const BorderSide(color: Colors.white70),
+          title: const Text(
+            'Company bill (VAT invoice)',
+            style: TextStyle(fontSize: 14, color: Colors.white),
+          ),
+          subtitle: const Text(
+            'Only if the customer asks for one',
+            style: TextStyle(fontSize: 11, color: Colors.white60),
+          ),
+          onChanged: isLoading
+              ? null
+              : (checked) => setState(() => _companyBill = checked ?? false),
+        ),
+        if (_companyBill) ...[
+          _buyerField(_buyerNameController, 'Company name'),
+          const SizedBox(height: 8),
+          _buyerField(_buyerAddressController, 'Address'),
+          const SizedBox(height: 8),
+          _buyerField(
+            _buyerPanController,
+            'Company PAN',
+            keyboardType: TextInputType.number,
+          ),
+          if (_buyerPanController.text.trim().isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text(
+                'Without the PAN this still prints as an abbreviated invoice, '
+                'and the company cannot claim the VAT.',
+                style: TextStyle(fontSize: 11, color: Colors.orangeAccent),
+              ),
+            ),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
+  Widget _buyerField(
+    TextEditingController controller,
+    String label, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      enabled: !isLoading,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: Colors.white, fontSize: 14),
+      // The warning under the PAN field has to follow what has been typed so far
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70, fontSize: 13),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.white30),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.green),
+        ),
+      ),
+    );
+  }
+
   Future<void> handleCheckoutAndPrint({required String paymentMethod}) async {
     if (ticketData == null || parkingFee == null) return;
     if (_alreadyCheckedOut) return;
@@ -389,6 +486,9 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         checkoutTime: checkoutTime.toString(),
         amount: amount,
         paymentMethod: paymentMethod,
+        customerName: _companyBill ? _buyerNameController.text : '',
+        customerAddress: _companyBill ? _buyerAddressController.text : '',
+        customerPan: _companyBill ? _buyerPanController.text : '',
       );
       print('Checkout response: $response');
 
@@ -660,6 +760,7 @@ Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      _buyerDetails(),
                       Text(
                         'Tap how the customer paid',
                         textAlign: TextAlign.center,

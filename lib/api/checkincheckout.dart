@@ -50,6 +50,12 @@ class VehicleService {
     required String checkoutTime,
     required double amount,
     required String paymentMethod,
+    // IRD Annex 6: with a buyer's PAN the slip prints as a TAX INVOICE, which is the only
+    // version the buyer's employer can reclaim the VAT on. Without one it is an
+    // ABBREVIATED TAX INVOICE, which is what a visitor wants and all a visitor needs.
+    String customerName = '',
+    String customerAddress = '',
+    String customerPan = '',
   }) async {
     final url = Uri.parse('${ApiEndpoints.baseUrl}parkinginfo/checkout/');
     final body = json.encode({
@@ -59,6 +65,9 @@ class VehicleService {
       'checkout_time': checkoutTime,
       'amount': amount,
       'payment_method': paymentMethod,
+      if (customerName.trim().isNotEmpty) 'customer_name': customerName.trim(),
+      if (customerAddress.trim().isNotEmpty) 'customer_address': customerAddress.trim(),
+      if (customerPan.trim().isNotEmpty) 'customer_pan': customerPan.trim(),
     });
 
     try {
