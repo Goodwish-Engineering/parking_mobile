@@ -34,20 +34,4 @@ class IrdBillPrinter {
     await _channel.invokeMethod('printerPerformPrint', {'feedLines': 85});
     return true;
   }
-
-  /// Printed under an offline slip when the mall issues IRD bills: the bill is
-  /// issued when the checkout is uploaded, so this slip is not a tax invoice.
-  static Future<void> printProvisionalNote({
-    required Map<String, dynamic> checkoutResponse,
-    required double amount,
-  }) async {
-    if (!IrdBill.isOffline(checkoutResponse) || amount <= 0) return;
-    if (!await IrdBill.isOn()) return;
-    await _channel.invokeMethod('printerPerformPrint', {'feedLines': 2});
-    await _channel.invokeMethod('setPrinterPrintAlignment', {'alignment': 1});
-    await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 25});
-    await _channel.invokeMethod('printText', {
-      'text': IrdBill.provisionalLines.join('\n'),
-    });
-  }
 }

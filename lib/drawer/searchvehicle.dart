@@ -9,6 +9,7 @@ import 'package:parking/auth/api_endpoints.dart';
 import 'package:parking/auth/auth_service.dart';
 import 'package:parking/database/helper_class.dart';
 import 'package:parking/home/models/vehicleratemodel.dart';
+import 'package:parking/services/ird_bill.dart';
 import 'package:parking/services/ird_bill_printer.dart';
 
 class SearchLostVehicleScreen extends StatefulWidget {
@@ -222,8 +223,8 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
 
       // 1. Check out on the server first (same as the card screen): it rejects
       //    receipts that are already checked out, so no duplicate is printed,
-      //    and it returns the IRD bill. Offline (no status_code) still
-      //    completes locally and is uploaded later.
+      //    and it returns the IRD bill. Offline, a paid exit at a billing mall
+      //    waits for the internet; anything else completes locally.
       final response = await vehicleService.checkOut(
         receiptId: rId,
         vehicleNumber: vNo,
@@ -250,6 +251,19 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
         );
         if (alreadyOut) _searchVehicle();
         return;
+      }
+      if (await IrdBill.mustWaitForInternet(response, fee)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text(IrdBill.offlineBillMessage),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 6),
+          ),
+        );
+        return; // nothing printed or saved: pressing again online makes the bill
       }
 
       // 2. Print the IRD bill, or the usual slip when there is none
@@ -295,10 +309,6 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
             await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 22});
             await _channel.invokeMethod('printText', {'text': footerText});
           }
-          await IrdBillPrinter.printProvisionalNote(
-            checkoutResponse: response,
-            amount: fee,
-          );
           await _channel.invokeMethod('printerPerformPrint', {'feedLines': 80});
         }
       } catch (printErr) {

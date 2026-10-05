@@ -12,15 +12,20 @@ class IrdBill {
   static const _billingOnKey = 'ird_billing_on';
   static const divider = '------------------------';
 
-  /// Printed on a slip made while offline: the server issues the real bill
-  /// when the checkout is uploaded, so this paper must not look like one.
-  static const provisionalLines = [
-    'PROVISIONAL RECEIPT',
-    'NOT A TAX INVOICE',
-    'The VAT bill is issued when',
-    'the POS is back online.',
-    'Ask the counter for it.',
-  ];
+  /// Shown when a paid exit is tried without internet at a mall that issues IRD bills.
+  static const offlineBillMessage =
+      'No internet. The bill cannot be made offline. Turn on hotspot or mobile data and press again.';
+
+  /// Whether this exit has to wait for the internet. Only the server can make the IRD bill,
+  /// and the tax office does not allow a provisional receipt in its place, so a paid exit at
+  /// a billing mall is not finished offline: nothing is printed or saved, and pressing again
+  /// once connected makes the real bill. Free exits, and malls that do not bill, still
+  /// finish offline as before.
+  static Future<bool> mustWaitForInternet(
+    Map<String, dynamic> checkoutResponse,
+    double amount,
+  ) async =>
+      isOffline(checkoutResponse) && amount > 0 && await isOn();
 
   /// The bill to print after a checkout, or null when there is none (billing
   /// off, nothing charged, offline or an older server). The print is recorded

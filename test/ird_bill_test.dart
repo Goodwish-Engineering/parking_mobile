@@ -30,7 +30,7 @@ final bill = <String, dynamic>{
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('bill shows seller, invoice type, number and the VAT split', () {
+  test('an abbreviated invoice shows the total with VAT included, and no VAT line', () {
     expect(IrdBill.headingLines(bill), [
       'City Mall Parking',
       'Kathmandu',
@@ -45,13 +45,29 @@ void main() {
       'Date: 2083.06.02 (BS)',
       '1 x Rs 88.50 = Rs 88.50',
       'Taxable Amount: Rs 88.50',
-      'VAT 13%: Rs 11.50',
       'Total: Rs 100.00',
       'One Hundred Rupees Only',
       'Paid by: Cash',
     ]));
-    expect(lines.any((line) => line.startsWith('Buyer')), isFalse);
+    // Annex 6: only the full tax invoice splits out the VAT
+    expect(lines.any((line) => line.startsWith('VAT')), isFalse);
     expect(lines.any((line) => line.startsWith('Discount')), isFalse);
+  });
+
+  test('a full tax invoice shows the VAT line', () {
+    final full = {...bill, 'invoice_title': 'TAX INVOICE', 'show_vat_line': true, 'customer_pan': '601234567'};
+    expect(IrdBill.detailLines(full), contains('VAT 13%: Rs 11.50'));
+  });
+
+  test('a paid exit at a billing mall waits for the internet; others finish offline', () async {
+    const offline = {'error': 'SocketException'};
+    await IrdBill.rememberFromLogin({'ird_billing_enabled': true});
+    expect(await IrdBill.mustWaitForInternet(offline, 100), isTrue);
+    expect(await IrdBill.mustWaitForInternet(offline, 0), isFalse); // free exit: no bill needed
+    expect(await IrdBill.mustWaitForInternet({'detail': 'Checkout successful', 'bill': null}, 100), isFalse);
+
+    await IrdBill.rememberFromLogin({'ird_billing_enabled': false});
+    expect(await IrdBill.mustWaitForInternet(offline, 100), isFalse); // mall does not bill
   });
 
   test('reprints and cancelled bills say so', () {

@@ -12,6 +12,7 @@ import 'package:parking/main.dart';
 import 'package:intl/intl.dart';
 
 import 'package:parking/services/nfc_service.dart';
+import 'package:parking/services/ird_bill.dart';
 import 'package:parking/services/ird_bill_printer.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -456,9 +457,20 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         return; // do NOT print or record a duplicate
       }
 
-      // 2) Success (2xx) OR offline (network error) -> finalize locally.
-      //    Offline-first: when the server is unreachable we still print and
-      //    record, and the CSV sync reconciles later.
+      if (await IrdBill.mustWaitForInternet(response, amount)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(IrdBill.offlineBillMessage),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 6),
+          ),
+        );
+        return; // nothing printed or saved: pressing again online makes the bill
+      }
+
+      // 2) Success (2xx), or offline with no bill needed (free exit, or a mall
+      //    that does not bill) -> finalize locally; the CSV sync uploads it later.
       await _printReceipt(
         vehicleNumber: vehicleNumber,
         vehicleType: vehicleType,
@@ -582,10 +594,6 @@ Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}
       await printerChannel.invokeMethod('printText', {
         'text': 'Total: Rs $amount',
       });
-      await IrdBillPrinter.printProvisionalNote(
-        checkoutResponse: checkoutResponse,
-        amount: amount,
-      );
       await printerChannel.invokeMethod('printerPerformPrint', {
         'feedLines': 85,
       });
