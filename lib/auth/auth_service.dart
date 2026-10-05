@@ -114,4 +114,14 @@ class SecureStorage {
   static Future<void> clear() async {
     await _storage.deleteAll();
   }
+
+  /// Logout: forget the operator and their login tokens. The tenant server, slip
+  /// layout and rates stay, so the next operator only enters their login. Parking
+  /// records live in the local database, not here, so unsynced exits are kept and
+  /// upload after the next login.
+  static Future<void> clearLogin() async {
+    for (final key in [accessTokenKey, refreshTokenKey, idkey, fullNameKey, roleKey, freeTimeKey]) {
+      await _storage.delete(key: key);
+    }
+  }
 }

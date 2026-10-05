@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:parking/auth/loginpage.dart';
+import 'package:parking/auth/auth_service.dart';
 
 final FlutterSecureStorage secureStorage = FlutterSecureStorage();
 
@@ -78,6 +79,8 @@ class Mydrawer extends StatelessWidget {
                       style: TextStyle(color: Colors.red),
                     ),
                     onTap: () async {
+                      await SecureStorage.clearLogin();
+                      if (!context.mounted) return;
                       Navigator.of(context).pushAndRemoveUntil(
                         MaterialPageRoute(builder: (_) => const LoginScreen()),
                         (_) => false,
