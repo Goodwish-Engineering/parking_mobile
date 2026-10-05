@@ -1,4 +1,5 @@
 // ignore_for_file: avoid_print
+import 'package:parking/services/fee_plan.dart';
 import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -298,75 +299,19 @@ class _CheckoutScreenState extends State<CheckoutScreen>
     }
   }
 
+  /// The price to show the operator, from the vehicle type's fee plan. The server works the
+  /// same figure out from the same plan when it makes the bill.
   double? calculateParkingFee(Map<String, dynamic> data) {
     try {
       final checkInTime = data['checkInTime'] as DateTime;
-      final vehicleType = data['vehicleType'] as String;
-      final now = DateTime.now();
-      final duration = now.difference(checkInTime).inMinutes;
-
-      // Find matching vehicle rate from the passed vehicleRates list
+      final vehicleType = (data['vehicleType'] as String).toLowerCase();
       final vehicleRate = widget.vehicleRates.firstWhere(
-        (v) => v.vehicleType == vehicleType,
+        (v) => v.vehicleType.toLowerCase() == vehicleType,
         orElse: () => throw Exception('Vehicle type not found'),
       );
-      final useSimpleRateStructure = vehicleRate.quarterHourlyRate == 0;
-
-      if (useSimpleRateStructure) {
-        final hourlyRate = vehicleRate.hourlyRate;
-        final halfHourlyRate = vehicleRate.halfHourlyRate;
-
-        if (duration <= freeTime) {
-          return 0.0;
-        } else if (duration <= 30) {
-          return halfHourlyRate;
-        } else if (duration <= 60) {
-          return hourlyRate;
-        } else {
-          int intervals = (duration / 30).ceil();
-          return ((intervals ~/ 2) * hourlyRate +
-              (intervals % 2) * halfHourlyRate);
-        }
-      } else {
-        final quarterHourlyRate = vehicleRate.quarterHourlyRate;
-        final halfHourlyRate = vehicleRate.halfHourlyRate;
-        final hourlyRate = vehicleRate.hourlyRate;
-
-        if (duration <= freeTime) {
-          return 0.0;
-        }
-
-        // Number of completed hours
-        final completedHours = duration ~/ 60;
-
-        // Remaining minutes after full hours
-        final remainingMinutes = duration % 60;
-
-        double total = 0;
-
-        // Base hourly charge
-        if (remainingMinutes == 0) {
-          total = completedHours * hourlyRate;
-        } else {
-          total = (completedHours + 1) * hourlyRate;
-        }
-
-        // Adjust slab pricing
-        if (remainingMinutes > 0 && remainingMinutes <= 15) {
-          total = (completedHours * hourlyRate) + quarterHourlyRate;
-        } else if (remainingMinutes > 15 && remainingMinutes <= 30) {
-          total = (completedHours * hourlyRate) + halfHourlyRate;
-        } else if (remainingMinutes > 30) {
-          total = (completedHours + 1) * hourlyRate;
-        }
-
-        // Minimum 1 hour charge
-        if (total < hourlyRate) {
-          total = hourlyRate;
-        }
-
-        return total;
-      }
+      return vehicleRate
+          .plan(freeTime: freeTime)
+          .fee(FeePlan.stayMinutes(checkInTime, DateTime.now()));
     } catch (e) {
       print('Error calculating parking fee: $e');
       return null;

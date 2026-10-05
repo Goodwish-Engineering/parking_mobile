@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Kathmandu mall two-wheeler (NB80): 5 free minutes, then half-hour blocks of Rs 15 / Rs 25",
+    "plan": {
+      "free_minutes": 5,
+      "count_from": "after_free",
+      "first": [{"up_to": 30, "price": 15}, {"up_to": 60, "price": 25}],
+      "repeat": {"every": 60, "steps": [{"up_to": 30, "price": 15}, {"up_to": 60, "price": 25}]},
+      "grace_minutes": 0,
+      "daily_max": null
+    },
+    "expect": [[0, 0], [5, 0], [6, 15], [35, 15], [36, 25], [65, 25], [66, 40], [95, 40], [96, 50], [125, 50], [126, 65]]
+  },
+  {
+    "name": "24 Wheels bike (blue): a full hour for one minute, then +15 / +25 / +25 inside each extra hour",
+    "plan": {
+      "free_minutes": 0,
+      "count_from": "entry",
+      "first": [{"up_to": 60, "price": 25}],
+      "repeat": {"every": 60, "steps": [{"up_to": 15, "price": 15}, {"up_to": 60, "price": 25}]},
+      "grace_minutes": 0,
+      "daily_max": null
+    },
+    "expect": [[0, 0], [1, 25], [60, 25], [61, 40], [75, 40], [76, 50], [120, 50], [121, 65], [1440, 600]]
+  },
+  {
+    "name": "Rs 50 first hour, Rs 20 per extra half hour, 5 minutes of grace, Rs 300 a day at most",
+    "plan": {
+      "free_minutes": 10,
+      "count_from": "entry",
+      "first": [{"up_to": 60, "price": 50}],
+      "repeat": {"every": 30, "steps": [{"up_to": 30, "price": 20}]},
+      "grace_minutes": 5,
+      "daily_max": 300
+    },
+    "expect": [[10, 0], [11, 50], [65, 50], [66, 70], [600, 300], [1500, 340], [2880, 600]]
+  },
+  {
+    "name": "Flat Rs 100 whatever the stay",
+    "plan": {
+      "free_minutes": 0,
+      "count_from": "entry",
+      "first": [{"up_to": 1440, "price": 100}],
+      "repeat": null,
+      "grace_minutes": 0,
+      "daily_max": null
+    },
+    "expect": [[1, 100], [1440, 100], [3000, 100]]
+  }
+]

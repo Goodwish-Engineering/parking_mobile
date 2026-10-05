@@ -1,4 +1,5 @@
 // ignore_for_file: avoid_print, unused_field
+import 'package:parking/services/fee_plan.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -72,6 +73,7 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
     }
   }
 
+  /// The price so far, from the vehicle type's fee plan (the same one checkout uses).
   double? calculateParkingFee(Map<String, dynamic> data) {
     try {
       final checkInTimeStr = data['checkin_time'] ?? data['checkInTime'];
@@ -82,50 +84,13 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
           : DateTime.parse(checkInTimeStr.toString());
 
       final vehicleType = data['vehicle_type']?.toString() ?? '';
-      final now = DateTime.now();
-      final duration = now.difference(checkInTime).inMinutes;
-
       final vehicleRate = vehicleRates.firstWhere(
         (v) => v.vehicleType.toLowerCase() == vehicleType.toLowerCase(),
         orElse: () => throw Exception('Vehicle type not found'),
       );
-
-      final useSimpleRateStructure = vehicleRate.quarterHourlyRate == 0;
-
-      if (useSimpleRateStructure) {
-        final hourlyRate = vehicleRate.hourlyRate;
-        final halfHourlyRate = vehicleRate.halfHourlyRate;
-
-        if (duration <= freeTime) return 0.0;
-        if (duration <= 30) return halfHourlyRate;
-
-        int intervals = (duration / 30).ceil();
-        return ((intervals ~/ 2) * hourlyRate +
-            (intervals % 2) * halfHourlyRate);
-      } else {
-        final quarterHourlyRate = vehicleRate.quarterHourlyRate;
-        final halfHourlyRate = vehicleRate.halfHourlyRate;
-        final hourlyRate = vehicleRate.hourlyRate;
-
-        if (duration <= freeTime) return 0.0;
-
-        final completedHours = duration ~/ 60;
-        final remainingMinutes = duration % 60;
-        double total = 0;
-
-        if (remainingMinutes == 0) {
-          total = completedHours * hourlyRate;
-        } else if (remainingMinutes <= 15) {
-          total = (completedHours * hourlyRate) + quarterHourlyRate;
-        } else if (remainingMinutes <= 30) {
-          total = (completedHours * hourlyRate) + halfHourlyRate;
-        } else {
-          total = (completedHours + 1) * hourlyRate;
-        }
-
-        if (total < hourlyRate) total = hourlyRate;
-        return total;
-      }
+      return vehicleRate
+          .plan(freeTime: freeTime)
+          .fee(FeePlan.stayMinutes(checkInTime, DateTime.now()));
     } catch (_) {
       return null;
     }
