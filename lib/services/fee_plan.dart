@@ -91,9 +91,9 @@ class FeePlan {
     );
   }
 
-  /// What the NB80 app (Kathmandu mall) charged before plans existed: 5 free minutes, then
+  /// What the NB55 app (Kathmandu mall) charged before plans existed: 5 free minutes, then
   /// 30-minute blocks counted after them, alternating the half-hour and the hourly rate.
-  factory FeePlan.fromNb80Rates({required double hourly, required double halfHourly}) {
+  factory FeePlan.fromNb55Rates({required double hourly, required double halfHourly}) {
     final blocks = halfHourly == hourly
         ? [FeeStep(60, hourly)]
         : [FeeStep(30, halfHourly), FeeStep(60, hourly)];

@@ -1,6 +1,6 @@
 [
   {
-    "name": "Kathmandu mall two-wheeler (NB80): 5 free minutes, then half-hour blocks of Rs 15 / Rs 25",
+    "name": "Kathmandu mall two-wheeler (NB55): 5 free minutes, then half-hour blocks of Rs 15 / Rs 25",
     "plan": {
       "free_minutes": 5,
       "count_from": "after_free",
