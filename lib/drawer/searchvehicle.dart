@@ -12,6 +12,7 @@ import 'package:parking/database/helper_class.dart';
 import 'package:parking/home/models/vehicleratemodel.dart';
 import 'package:parking/services/ird_bill.dart';
 import 'package:parking/services/ird_bill_printer.dart';
+import 'package:parking/services/slip_text.dart';
 
 class SearchLostVehicleScreen extends StatefulWidget {
   const SearchLostVehicleScreen({super.key});
@@ -211,7 +212,6 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
       final heading2 = parkingSlipDetails['heading2'] ?? '';
       final heading3 = parkingSlipDetails['heading3'] ?? '';
       final heading4 = parkingSlipDetails['heading4'] ?? '';
-      final footerText = parkingSlipDetails['footerText'];
       final fullName = parkingSlipDetails['full_name'] ?? 'Operator';
       final opId = parkingSlipDetails['id'] ?? '';
       final now = DateTime.now();
@@ -279,14 +279,15 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
         final billed = await IrdBillPrinter.printIfBilled(
           checkoutResponse: response,
           amount: fee,
+          // Same lines, in the same order, as the NB55 app's bill
           parkingLines: [
             'Vehicle Number: $vNo',
             'Vehicle Type: $vType',
             'Receipt ID: $rId',
-            'Check-out BY: $fullName',
-            'Check-in: ${formatDateTime(cIn)}',
-            'Check-out: $ctt',
-            'Duration: $duration',
+            'Check-in: ${SlipText.time(cIn)}',
+            'Check-out: ${SlipText.time(now)}',
+            'Duration: ${SlipText.duration(cIn, now)}',
+            'Check-out By: $fullName',
           ],
         );
         if (!billed) {
@@ -298,26 +299,24 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
           await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 25});
           await _channel.invokeMethod('setPrinterPrintAlignment', {'alignment': 0});
           await _channel.invokeMethod('printText', {
-            'text': 'Vehicle Number: $vNo\n'
-                'Vehicle Type: $vType\n'
-                'Receipt ID: $rId\n'
-                'Check-out BY: $fullName\n'
-                'Check-in: ${formatDateTime(cIn)}\n'
-                'Check-out: $ctt\n'
-                'Duration: $duration'
-                // A free exit was not paid for, by cash or QR
-                '${fee > 0 ? '\nPaid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}' : ''}',
+            // Same lines, in the same order, as the NB55 app's checkout slip
+            'text': [
+              'Vehicle Number: $vNo',
+              'Vehicle Type: $vType',
+              'Receipt ID: $rId',
+              'Check-in: ${SlipText.time(cIn)}',
+              'Check-out: ${SlipText.time(now)}',
+              'Duration: ${SlipText.duration(cIn, now)}',
+              // A free exit was not paid for, by cash or QR
+              if (fee > 0) 'Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}',
+              'Check-out By: $fullName',
+            ].join('\n'),
           });
           await _channel.invokeMethod('printerPerformPrint', {'feedLines': 20});
 
           await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 35});
           await _channel.invokeMethod('setPrinterPrintAlignment', {'alignment': 1});
-          await _channel.invokeMethod('printText', {'text': 'Total Fee: Rs. ${fee.toStringAsFixed(0)}'});
-          if (footerText != null && footerText.isNotEmpty) {
-            await _channel.invokeMethod('printerPerformPrint', {'feedLines': 10});
-            await _channel.invokeMethod('setPrinterPrintFontSize', {'fontSize': 22});
-            await _channel.invokeMethod('printText', {'text': footerText});
-          }
+          await _channel.invokeMethod('printText', {'text': SlipText.total(fee)});
           await _channel.invokeMethod('printerPerformPrint', {'feedLines': 80});
         }
       } catch (printErr) {

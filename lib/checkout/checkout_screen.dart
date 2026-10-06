@@ -9,11 +9,11 @@ import 'package:parking/auth/auth_service.dart';
 import 'package:parking/database/helper_class.dart';
 import 'package:parking/home/models/vehicleratemodel.dart';
 import 'package:parking/main.dart';
-import 'package:intl/intl.dart';
 
 import 'package:parking/services/nfc_service.dart';
 import 'package:parking/services/ird_bill.dart';
 import 'package:parking/services/ird_bill_printer.dart';
+import 'package:parking/services/slip_text.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final List<VehicleRate> vehicleRates;
@@ -543,14 +543,15 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       final billed = await IrdBillPrinter.printIfBilled(
         checkoutResponse: checkoutResponse,
         amount: amount,
+        // Same lines, in the same order, as the NB55 app's bill
         parkingLines: [
           'Vehicle Number: $vehicleNumber',
           'Vehicle Type: $vehicleType',
           'Receipt ID: $receiptId',
-          'Check-out BY: $fullName',
-          'Check-in: ${DateFormat('yyyy/MM/dd HH:mm:ss').format(checkInTime)}',
-          'Check-out: ${DateFormat('yyyy/MM/dd HH:mm:ss').format(checkoutTime)}',
-          'Duration: ${checkoutTime.difference(checkInTime).inHours}h ${checkoutTime.difference(checkInTime).inMinutes.remainder(60)}m',
+          'Check-in: ${SlipText.time(checkInTime)}',
+          'Check-out: ${SlipText.time(checkoutTime)}',
+          'Duration: ${SlipText.duration(checkInTime, checkoutTime)}',
+          'Check-out By: $fullName',
         ],
       );
       if (billed) return;
@@ -572,17 +573,18 @@ class _CheckoutScreenState extends State<CheckoutScreen>
         'fontSize': 25,
       });
       await printerChannel.invokeMethod('printText', {
-        'text':
-            '''
-Vehicle Number: $vehicleNumber
-Vehicle Type: $vehicleType
-Receipt ID: $receiptId
-Check-out BY: $fullName
-Check-in: ${DateFormat('yyyy/MM/dd HH:mm:ss').format(checkInTime)}
-Check-out: ${DateFormat('yyyy/MM/dd HH:mm:ss').format(checkoutTime)}
-Duration: ${checkoutTime.difference(checkInTime).inHours}h ${checkoutTime.difference(checkInTime).inMinutes.remainder(60)}m
-${amount > 0 ? 'Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}' : ''}
-''',
+        // Same lines, in the same order, as the NB55 app's checkout slip
+        'text': [
+          'Vehicle Number: $vehicleNumber',
+          'Vehicle Type: $vehicleType',
+          'Receipt ID: $receiptId',
+          'Check-in: ${SlipText.time(checkInTime)}',
+          'Check-out: ${SlipText.time(checkoutTime)}',
+          'Duration: ${SlipText.duration(checkInTime, checkoutTime)}',
+          // A free exit was not paid for, by cash or QR
+          if (amount > 0) 'Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}',
+          'Check-out By: $fullName',
+        ].join('\n'),
       });
 
       await printerChannel.invokeMethod('printerPerformPrint', {
@@ -592,7 +594,7 @@ ${amount > 0 ? 'Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}' : ''}
         'fontSize': 80,
       });
       await printerChannel.invokeMethod('printText', {
-        'text': 'Total: Rs $amount',
+        'text': SlipText.total(amount),
       });
       await printerChannel.invokeMethod('printerPerformPrint', {
         'feedLines': 85,
@@ -820,7 +822,7 @@ ${amount > 0 ? 'Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}' : ''}
 
   Widget _buildTicketDetails() {
     final checkInTime = ticketData!['checkInTime'] as DateTime;
-    final duration = DateTime.now().difference(checkInTime);
+    final now = DateTime.now();
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(16),
@@ -841,11 +843,11 @@ ${amount > 0 ? 'Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}' : ''}
               _buildDetailRow('Receipt ID:', ticketData!['receiptID']),
               _buildDetailRow(
                 'Check-in Time:',
-                DateFormat('MMM dd, yyyy HH:mm:ss').format(checkInTime),
+                SlipText.time(checkInTime),
               ),
               _buildDetailRow(
                 'Duration:',
-                '${duration.inHours}h ${duration.inMinutes.remainder(60)}m',
+                SlipText.duration(checkInTime, now),
               ),
               Divider(),
               Text(

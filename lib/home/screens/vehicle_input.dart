@@ -6,6 +6,7 @@ import 'package:parking/database/helper_class.dart';
 import 'package:parking/home/models/vehicleratemodel.dart';
 import 'package:parking/models/ticket_model.dart';
 import 'package:parking/services/nfc_service.dart';
+import 'package:parking/services/slip_text.dart';
 
 class VehicleDetailsScreen extends StatefulWidget {
   final VehicleRate vehicleRate;
@@ -253,16 +254,11 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
     vn = _vcontroller.text.trim();
     rid = Ticket.generateReceiptID();
     vt = vehicleType;
-    String ct = DateTime.now().toIso8601String();
-
-    DateTime now = DateTime.now();
-    String ctt = formatDateTime(now);
-    String formattedDate = "${now.year}/${now.month}/${now.day}";
-
-    String hour = (now.hour % 12 == 0) ? '12' : (now.hour % 12).toString();
-    String amPm = now.hour < 12 ? 'AM' : 'PM';
-    String formattedTime =
-        "$hour:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} $amPm";
+    // One timestamp for the slip, local DB, QR and server so they all agree.
+    final now = DateTime.now();
+    final ct = now.toIso8601String();
+    final ctt = formatDateTime(now);
+    final operator = '$firstname $lastname'.trim();
 
     try {
       await platform.invokeMethod('setPrinterPrintAlignment', {'alignment': 1});
@@ -272,10 +268,14 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
       await platform.invokeMethod('setPrinterPrintFontSize', {'fontSize': 24});
       await platform.invokeMethod('printerPerformPrint', {'feedLines': 2});
 
-      String detailsText =
-          'Vehicle Number: $vn\nVehicle Type: $vt\nReceipt ID: $rid\n'
-          'Check-in BY: $firstname $lastname\nDate: $formattedDate\n'
-          'Time: $formattedTime';
+      // Same lines, in the same order, as the NB55 app's check-in slip
+      final detailsText = [
+        'Vehicle Number: $vn',
+        'Vehicle Type: $vt',
+        'Receipt ID: $rid',
+        'Check-in: ${SlipText.time(now)}',
+        if (operator.isNotEmpty) 'Check-in By: $operator',
+      ].join('\n');
 
       await platform.invokeMethod('printText', {'text': detailsText});
       await platform.invokeMethod('printerPerformPrint', {'feedLines': 20});
