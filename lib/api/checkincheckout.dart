@@ -4,6 +4,10 @@ import 'package:parking/auth/api_endpoints.dart';
 import 'package:parking/auth/auth_service.dart';
 
 class VehicleService {
+  // A slow connection must not leave the exit screen loading: after this the exit is
+  // treated as offline, as on the NB55
+  static const Duration _networkTimeout = Duration(seconds: 5);
+
   Future<Map<String, dynamic>> checkIn({
     required String receiptId,
     required String vehicleNumber,
@@ -73,14 +77,16 @@ class VehicleService {
     try {
       final token = await SecureStorage.getAccessToken();
 
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: body,
-      );
+      final response = await http
+          .post(
+            url,
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer $token",
+            },
+            body: body,
+          )
+          .timeout(_networkTimeout);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
