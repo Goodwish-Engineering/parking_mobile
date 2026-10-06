@@ -56,18 +56,21 @@ class SyncService {
     debugPrint("awaiting lock");
     await _lock.synchronized(() async {
       try {
-        final unsyncedRecords = await _dbHelper.getUnsyncedRecords();
-        if (unsyncedRecords.isEmpty) return;
+        // One read: the file sent and the records marked afterwards are the same ones
+        final records = await _dbHelper.getUnsyncedRecords();
+        if (records.isEmpty) return;
 
-        final csvData = await _dbHelper.exportToCsv();
-        if (csvData.isEmpty) return;
+        final failedRows =
+            await SyncService.syncParkingData(_dbHelper.toCsv(records));
+        if (failedRows == null) return; // not delivered: all stay unsent
 
-        final success = await SyncService.syncParkingData(csvData);
-        if (success) {
-          final ids = unsyncedRecords.map((r) => r['id'] as int).toList();
-          await _dbHelper.markRecordsAsSynced(ids);
-          debugPrint('Successfully synced ${ids.length} records to server');
-        }
+        // Rows the server could not save stay unsent and are retried; the rest are done
+        final sent = [
+          for (var i = 0; i < records.length; i++)
+            if (!failedRows.contains(i + 1)) records[i],
+        ];
+        await _dbHelper.markRecordsAsSynced(sent);
+        debugPrint('Synced ${sent.length} of ${records.length} records');
       } catch (e) {
         debugPrint('Sync error: $e');
       }
@@ -140,7 +143,20 @@ class SyncService {
     });
   }
 
-  static Future<bool> syncParkingData(String csvContent) async {
+  /// Row numbers (1 = first record) the server could not save, from its reply to an
+  /// upload; null when the upload as a whole was not accepted, so nothing was saved.
+  static Set<int>? failedRows(int statusCode, String body) {
+    if (statusCode == 200 || statusCode == 201) return {};
+    if (statusCode != 207) return null; // 207: saved, except the rows listed
+    try {
+      final errors = (jsonDecode(body) as Map<String, dynamic>)['errors'] as List;
+      return {for (final e in errors) (e as Map<String, dynamic>)['row_number'] as int};
+    } catch (_) {
+      return null; // can't tell which rows: send them all again
+    }
+  }
+
+  static Future<Set<int>?> syncParkingData(String csvContent) async {
     final token = await SecureStorage.getAccessToken();
 
     try {
@@ -168,10 +184,10 @@ class SyncService {
       debugPrint('Status: ${response.statusCode}');
       debugPrint('Body: ${response.body}');
 
-      return response.statusCode == 200 || response.statusCode == 201;
+      return failedRows(response.statusCode, response.body);
     } catch (e) {
       debugPrint('Upload error: $e');
-      return false;
+      return null;
     }
   }
 }

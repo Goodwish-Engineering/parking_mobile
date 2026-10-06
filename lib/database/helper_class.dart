@@ -179,23 +179,27 @@ class DatabaseHelper {
     return await db.query('parking_records', where: 'is_synced = 0');
   }
 
-  Future<void> markRecordsAsSynced(List<int> ids) async {
-    if (ids.isEmpty) return;
+  /// Marks uploaded records as sent -- but only those unchanged since they were read for
+  /// the upload. An exit saved while the upload was on its way was not in it, so that
+  /// record stays unsent and its exit goes with the next sync instead of being lost.
+  Future<void> markRecordsAsSynced(List<Map<String, dynamic>> sent) async {
+    if (sent.isEmpty) return;
     final db = await database;
     await _lock.synchronized(() async {
-      await db.rawUpdate(
-        'UPDATE parking_records SET is_synced = 1 WHERE id IN (${List.filled(ids.length, '?').join(',')})',
-        ids,
-      );
+      final batch = db.batch();
+      for (final r in sent) {
+        batch.rawUpdate(
+          'UPDATE parking_records SET is_synced = 1 '
+          'WHERE id = ? AND checkout_time IS ? AND amount IS ?',
+          [r['id'], r['checkout_time'], r['amount']],
+        );
+      }
+      await batch.commit(noResult: true);
     });
   }
 
-  Future<String> exportToCsv() async {
-    final db = await database;
-    final records = await db.query('parking_records', where: 'is_synced = 0');
-
-    if (records.isEmpty) return '';
-
+  /// The upload file for exactly these records, in this order (row n is records[n - 1]).
+  String toCsv(List<Map<String, dynamic>> records) {
     List<List<dynamic>> rows = [];
     rows.add([
       'receipt_id',
