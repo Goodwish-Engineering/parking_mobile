@@ -262,7 +262,7 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
     String hour = (now.hour % 12 == 0) ? '12' : (now.hour % 12).toString();
     String amPm = now.hour < 12 ? 'AM' : 'PM';
     String formattedTime =
-        "$hour:${now.minute.toString().padLeft(2, '0')} $amPm";
+        "$hour:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')} $amPm";
 
     try {
       await platform.invokeMethod('setPrinterPrintAlignment', {'alignment': 1});

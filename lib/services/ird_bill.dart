@@ -109,10 +109,6 @@ class IrdBill {
     final seller = Map<String, dynamic>.from(bill['seller'] ?? const {});
     return [
       if (_text(seller['name']).isNotEmpty) _text(seller['name']),
-      // Under the company, never instead of it. A mall running several car parks
-      // bills them all under one PAN and one number series, with the branch named
-      // here -- the tax office's own instruction. Blank for a single-lot mall.
-      if (_text(seller['branch']).isNotEmpty) 'Branch: ${_text(seller['branch'])}',
       if (_text(seller['address']).isNotEmpty) _text(seller['address']),
       'PAN/VAT No: ${_text(seller['pan'])}',
       if (_text(seller['phone']).isNotEmpty) 'Phone: ${_text(seller['phone'])}',

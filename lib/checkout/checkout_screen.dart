@@ -548,8 +548,8 @@ class _CheckoutScreenState extends State<CheckoutScreen>
           'Vehicle Type: $vehicleType',
           'Receipt ID: $receiptId',
           'Check-out BY: $fullName',
-          'Check-in: ${DateFormat('yyyy/MM/dd HH:mm').format(checkInTime)}',
-          'Check-out: ${DateFormat('yyyy/MM/dd HH:mm').format(checkoutTime)}',
+          'Check-in: ${DateFormat('yyyy/MM/dd HH:mm:ss').format(checkInTime)}',
+          'Check-out: ${DateFormat('yyyy/MM/dd HH:mm:ss').format(checkoutTime)}',
           'Duration: ${checkoutTime.difference(checkInTime).inHours}h ${checkoutTime.difference(checkInTime).inMinutes.remainder(60)}m',
         ],
       );
@@ -578,10 +578,10 @@ Vehicle Number: $vehicleNumber
 Vehicle Type: $vehicleType
 Receipt ID: $receiptId
 Check-out BY: $fullName
-Check-in: ${DateFormat('yyyy/MM/dd HH:mm').format(checkInTime)}
-Check-out: ${DateFormat('yyyy/MM/dd HH:mm').format(checkoutTime)}
+Check-in: ${DateFormat('yyyy/MM/dd HH:mm:ss').format(checkInTime)}
+Check-out: ${DateFormat('yyyy/MM/dd HH:mm:ss').format(checkoutTime)}
 Duration: ${checkoutTime.difference(checkInTime).inHours}h ${checkoutTime.difference(checkInTime).inMinutes.remainder(60)}m
-Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}
+${amount > 0 ? 'Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}' : ''}
 ''',
       });
 
@@ -841,7 +841,7 @@ Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}
               _buildDetailRow('Receipt ID:', ticketData!['receiptID']),
               _buildDetailRow(
                 'Check-in Time:',
-                DateFormat('MMM dd, yyyy HH:mm').format(checkInTime),
+                DateFormat('MMM dd, yyyy HH:mm:ss').format(checkInTime),
               ),
               _buildDetailRow(
                 'Duration:',

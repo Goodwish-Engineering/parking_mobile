@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:parking/api/checkincheckout.dart';
+import 'package:parking/checkout/company_bill_fields.dart';
 import 'package:parking/auth/api_endpoints.dart';
 import 'package:parking/auth/auth_service.dart';
 import 'package:parking/database/helper_class.dart';
@@ -32,6 +33,7 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
   bool _isLoading = false;
   bool _isOffline = false;
   bool _isCheckingOut = false;
+  final CompanyBill _companyBill = CompanyBill();
   String _selectedFilter = 'ALL'; // ALL | PARKED | CHECKED_OUT
   int freeTime = 0;
 
@@ -47,6 +49,7 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
   @override
   void dispose() {
     _vehicleNumberController.dispose();
+    _companyBill.dispose();
     super.dispose();
   }
 
@@ -195,6 +198,8 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
   Future<void> handleCheckoutAndPrint({
     required Map<String, dynamic> item,
     required String paymentMethod,
+    // The company's details when one asked for a VAT bill
+    CompanyBill? company,
   }) async {
     final fee = calculateParkingFee(item);
     if (fee == null) return;
@@ -232,6 +237,9 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
         checkoutTime: now.toIso8601String(),
         amount: fee,
         paymentMethod: paymentMethod,
+        customerName: company?.customerName ?? '',
+        customerAddress: company?.customerAddress ?? '',
+        customerPan: company?.customerPan ?? '',
       );
       if (response.containsKey('status_code')) {
         final body = (response['response_body'] ?? '').toString().toLowerCase();
@@ -296,8 +304,9 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
                 'Check-out BY: $fullName\n'
                 'Check-in: ${formatDateTime(cIn)}\n'
                 'Check-out: $ctt\n'
-                'Duration: $duration\n'
-                'Paid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}',
+                'Duration: $duration'
+                // A free exit was not paid for, by cash or QR
+                '${fee > 0 ? '\nPaid by: ${paymentMethod == 'QR' ? 'QR' : 'Cash'}' : ''}',
           });
           await _channel.invokeMethod('printerPerformPrint', {'feedLines': 20});
 
@@ -666,6 +675,28 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
                                       ),
                                   ],
                                 ),
+                                if (!isCheckedOut && fee != null)
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      icon: const Icon(Icons.receipt_long, size: 16),
+                                      label: const Text(
+                                        'Company bill (VAT invoice)',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                      onPressed: _isCheckingOut
+                                          ? null
+                                          : () async {
+                                              final paid = await askCompanyBill(context, _companyBill);
+                                              if (paid == null) return;
+                                              await handleCheckoutAndPrint(
+                                                item: vehicle,
+                                                paymentMethod: paid,
+                                                company: _companyBill,
+                                              );
+                                            },
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
