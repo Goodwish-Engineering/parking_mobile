@@ -252,7 +252,9 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
             content: Text(
               alreadyOut
                   ? 'This receipt is already checked out.'
-                  : 'Checkout was rejected by server. Please retry.',
+                  : IrdBill.isMovedToPc(response)
+                      ? IrdBill.movedToPcMessage
+                      : 'Checkout was rejected by server. Please retry.',
             ),
             backgroundColor: alreadyOut ? Colors.orange : Colors.red,
           ),
@@ -264,7 +266,7 @@ class _SearchLostVehicleScreenState extends State<SearchLostVehicleScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             behavior: SnackBarBehavior.floating,
             content: Text(IrdBill.offlineBillMessage),
             backgroundColor: Colors.red,

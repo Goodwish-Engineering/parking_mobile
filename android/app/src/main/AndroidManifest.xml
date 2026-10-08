@@ -3,10 +3,13 @@
     <uses-permission android:name="android.permission.NFC"/>
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
 
+    <!-- Plain http is for a mall PC server on the mall's own network (an address like
+         http://192.168.1.50 can have no certificate). Cloud servers are always https. -->
     <application
         android:label="WishPark"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

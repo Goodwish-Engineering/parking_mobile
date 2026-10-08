@@ -449,7 +449,9 @@ class _CheckoutScreenState extends State<CheckoutScreen>
             content: Text(
               alreadyOut
                   ? 'This receipt is already checked out — cannot check out again.'
-                  : 'Checkout was rejected by the server. Please retry.',
+                  : IrdBill.isMovedToPc(response)
+                      ? IrdBill.movedToPcMessage
+                      : 'Checkout was rejected by the server. Please retry.',
             ),
             backgroundColor: alreadyOut ? Colors.orange : Colors.red,
           ),
@@ -460,7 +462,7 @@ class _CheckoutScreenState extends State<CheckoutScreen>
       if (await IrdBill.mustWaitForInternet(response, amount)) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(IrdBill.offlineBillMessage),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 6),

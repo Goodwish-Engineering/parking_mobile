@@ -74,6 +74,56 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// The server address typed in by hand. The usual way, the email lookup, asks our cloud
+  /// where this mall's server is -- which needs internet. A mall that runs on its own PC can
+  /// still log a POS in while its internet is down by typing the PC's address here.
+  Future<void> _setServerAddress() async {
+    final controller = TextEditingController(
+      text: ApiEndpoints.baseUrl.replaceFirst(RegExp(r'/api/?$'), ''),
+    );
+    final entered = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Server address'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          autocorrect: false,
+          decoration: const InputDecoration(hintText: 'http://192.168.1.50'),
+        ),
+        actions: [
+          // Empty: go back to finding the server from the email
+          TextButton(
+            onPressed: () => Navigator.pop(context, ''),
+            child: const Text('Use email'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (entered == null) return;
+
+    var url = entered.trim();
+    if (url.isEmpty) {
+      ApiEndpoints.baseUrl = '';
+      await SecureStorage.saveBaseUrl('');
+      setState(() => hasBaseUrl = false);
+      return;
+    }
+    if (!url.startsWith(RegExp(r'https?://'))) url = 'http://$url';
+    url = url.replaceFirst(RegExp(r'/+$'), '');
+    ApiEndpoints.baseUrl = '$url/api/';
+    await SecureStorage.saveBaseUrl('$url/api/');
+    setState(() => hasBaseUrl = true);
+  }
+
   Future<void> _performLogin() async {
     try {
       final response = await http.post(
@@ -335,6 +385,16 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: Colors.white,
                             ),
                           ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Center(
+                  child: TextButton(
+                    onPressed: isLoading ? null : _setServerAddress,
+                    child: const Text(
+                      "Server address",
+                      style: TextStyle(color: Colors.white70),
+                    ),
                   ),
                 ),
               ],

@@ -13,8 +13,21 @@ class IrdBill {
   static const divider = '------------------------';
 
   /// Shown when a paid exit is tried without internet at a mall that issues IRD bills.
-  static const offlineBillMessage =
-      'No internet. The bill cannot be made offline. Turn on hotspot or mobile data and press again.';
+  /// The cloud refuses a mall that now runs on its own PC server: what the cloud holds for it is
+  /// a view-only copy. A POS still pointed at the cloud has to log in again to be sent to the PC.
+  static const movedToPcMessage =
+      'This mall now runs on its own PC server. Log out and log in again.';
+
+  static bool isMovedToPc(Map<String, dynamic> response) =>
+      (response['response_body'] ?? '').toString().contains('read_only_copy');
+
+  /// A POS on a mall PC reaches it over the mall's Wi-Fi (http://, on the mall network), not the
+  /// internet: there, mobile data or a hotspot would only take it off the network the PC is on.
+  static bool get onMallPc => ApiEndpoints.baseUrl.startsWith('http://');
+
+  static String get offlineBillMessage => onMallPc
+      ? 'Cannot reach the mall PC. The bill cannot be made. Check the Wi-Fi and that the PC is on, then press again.'
+      : 'No internet. The bill cannot be made offline. Turn on hotspot or mobile data and press again.';
 
   /// Whether this exit has to wait for the internet. Only the server can make the IRD bill,
   /// and the tax office does not allow a provisional receipt in its place, so a paid exit at
